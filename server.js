@@ -59,6 +59,56 @@ app.get('/clientes', (req, res) => {
         clientes: clientesPaginados
     });
 });
+// Ruta para obtener solo nombre y comidas favoritas con paginación
+app.get('/clientes/comidas', (req, res) => {
+    const { page = 1, limit = 100 } = req.query;
+
+    const pagina = parseInt(page);
+    const limite = parseInt(limit);
+    const inicio = (pagina - 1) * limite;
+    const fin = pagina * limite;
+
+    const resultadoPaginado = clientes
+        .slice(inicio, fin)
+        .map(cliente => ({
+            id: cliente.id,
+            nombre: cliente.nombre,
+            comidasFavoritas: cliente.comidasFavoritas
+        }));
+
+    res.json({
+        total: clientes.length,
+        paginaActual: pagina,
+        totalPaginas: Math.ceil(clientes.length / limite),
+        clientes: resultadoPaginado
+    });
+});
+
+// Ruta para obtener solo nombre y descuento navideño con paginación
+app.get('/clientes/descuentos', (req, res) => {
+    const { page = 1, limit = 100 } = req.query;
+
+    const pagina = parseInt(page);
+    const limite = parseInt(limit);
+    const inicio = (pagina - 1) * limite;
+    const fin = pagina * limite;
+
+    const resultadoPaginado = clientes
+        .slice(inicio, fin)
+        .map(cliente => ({
+            id: cliente.id,
+            nombre: cliente.nombre,
+            descuentoNavideno: cliente.descuentoNavideno
+        }));
+
+    res.json({
+        total: clientes.length,
+        paginaActual: pagina,
+        totalPaginas: Math.ceil(clientes.length / limite),
+        clientes: resultadoPaginado
+    });
+});
+
 
 // Ruta para obtener un cliente por id
 app.get('/clientes/:id', (req, res) => {
@@ -100,6 +150,39 @@ app.post('/clientes/:id/descuento', (req, res) => {
     res.json({ mensaje: "Descuento asignado.", descuentoNavideno: cliente.descuentoNavideno });
 });
 
+// Ruta para obtener nombre y comidas favoritas por ID
+app.get('/clientes/:id/comidas', (req, res) => {
+    const { id } = req.params;
+    const cliente = clientes.find(c => c.id === parseInt(id));
+
+    if (!cliente) {
+        return res.status(404).json({ mensaje: "Cliente no encontrado." });
+    }
+
+    res.json({
+        id: cliente.id,
+        nombre: cliente.nombre,
+        comidasFavoritas: cliente.comidasFavoritas
+    });
+});
+
+// Ruta para obtener nombre y descuento navideño por ID
+app.get('/clientes/:id/descuento', (req, res) => {
+    const { id } = req.params;
+    const cliente = clientes.find(c => c.id === parseInt(id));
+
+    if (!cliente) {
+        return res.status(404).json({ mensaje: "Cliente no encontrado." });
+    }
+
+    res.json({
+        id: cliente.id,
+        nombre: cliente.nombre,
+        descuentoNavideno: cliente.descuentoNavideno
+    });
+});
+
+
 // Ruta para eliminar un cliente
 app.delete('/clientes/:id', (req, res) => {
     const { id } = req.params;
@@ -111,6 +194,46 @@ app.delete('/clientes/:id', (req, res) => {
 
     clientes = clientes.filter(c => c.id !== parseInt(id));
     res.json({ mensaje: "Cliente eliminado correctamente." });
+});
+
+// Ruta para eliminar solo el descuento navideño de un cliente
+app.delete('/clientes/:id/descuento', (req, res) => {
+    const { id } = req.params;
+
+    const cliente = clientes.find(c => c.id === parseInt(id));
+    if (!cliente) {
+        return res.status(404).json({ mensaje: "Cliente no encontrado." });
+    }
+
+    cliente.descuentoNavideno = { porcentaje: 0, descripcion: "" };
+    res.json({
+        mensaje: "Descuento navideño eliminado correctamente.",
+        cliente: {
+            id: cliente.id,
+            nombre: cliente.nombre,
+            descuentoNavideno: cliente.descuentoNavideno
+        }
+    });
+});
+
+// Ruta para eliminar todas las comidas favoritas de un cliente
+app.delete('/clientes/:id/comidas', (req, res) => {
+    const { id } = req.params;
+
+    const cliente = clientes.find(c => c.id === parseInt(id));
+    if (!cliente) {
+        return res.status(404).json({ mensaje: "Cliente no encontrado." });
+    }
+
+    cliente.comidasFavoritas = [];
+    res.json({
+        mensaje: "Comidas favoritas eliminadas correctamente.",
+        cliente: {
+            id: cliente.id,
+            nombre: cliente.nombre,
+            comidasFavoritas: cliente.comidasFavoritas
+        }
+    });
 });
 
 // Iniciar el servidor
