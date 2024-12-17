@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes API</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        /* Estilos para compactar la paginación */
+        .pagination .page-link {
+            padding: 5px 8px; /* Reducir espacio interno */
+            font-size: 0.9rem; /* Tamaño de letra más pequeño */
+        }
+
+        .pagination .page-item {
+            margin: 0 2px; /* Reducir espacio entre botones */
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">Lista de Clientes</h1>
+        <!-- Botones para mostrar formulario -->
+        <div class="mb-4">
+            <button class="btn btn-primary" onclick="mostrarFormulario()">Agregar Cliente</button>
+        </div>
+        <div class="mb-4">
+            <label for="buscarId" class="form-label">Buscar Cliente por ID</label>
+            <div class="input-group">
+                <input type="number" id="buscarId" class="form-control" placeholder="Ingresa el ID del cliente">
+                <button class="btn btn-primary" onclick="buscarClientePorId()">Buscar</button>
+            </div>
+        </div>
+        
+        <!-- Tabla para mostrar clientes -->
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Correo</th>
+                    <th>Comidas Favoritas</th>
+                    <th>Descuento Navideño</th>
+                </tr>
+            </thead>
+            <tbody id="clientes-body">
+                <!-- Contenido dinámico -->
+            </tbody>
+        </table>
+
+        <!-- Paginación -->
+        <nav>
+            <ul class="pagination justify-content-center" id="pagination">
+                <!-- Paginación dinámica -->
+            </ul>
+        </nav>
+    </div>
+    <!-- Modal para agregar cliente -->
+    <div class="modal fade" id="agregarClienteModal" tabindex="-1" aria-labelledby="agregarClienteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="agregarClienteModalLabel">Agregar Cliente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formCliente">
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="nombre" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="correo" class="form-label">Correo</label>
+                            <input type="email" class="form-control" id="correo" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="comidasFavoritas" class="form-label">Comidas Favoritas</label>
+                            <input type="text" class="form-control" id="comidasFavoritas">
+                        </div>
+                        <div class="mb-3">
+                            <label for="descuento" class="form-label">Descuento Navideño (%)</label>
+                            <input type="number" class="form-control" id="descuento" min="0" max="100" value="0">
+                        </div>
+                        <div class="mb-3">
+                            <label for="descripcionDescuento" class="form-label">Descripción del Descuento</label>
+                            <input type="text" class="form-control" id="descripcionDescuento">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-primary" onclick="agregarCliente()">Agregar Cliente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS y Dependencias -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Script para consumir API -->
+    <script>
+        const apiUrl = 'http://localhost:3000/clientes';
+        let currentPage = 1;
+        const limit = 10;
+
+
+        async function buscarClientePorId() {
+    const id = document.getElementById('buscarId').value;
+
+    // Validar que se ingresó un ID válido
+    if (!id) {
+        Swal.fire('Error', 'Por favor, ingresa un ID válido.', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${apiUrl}/${id}`);
+        const cliente = await response.json();
+
+        if (response.ok) {
+            // Limpiar la tabla y mostrar solo el cliente encontrado
+            const tbody = document.getElementById('clientes-body');
+            tbody.innerHTML = `
+                <tr>
+                    <td>${cliente.id}</td>
+                    <td>${cliente.nombre}</td>
+                    <td>${cliente.correo || 'N/A'}</td>
+                    <td>${cliente.comidasFavoritas.join(', ') || 'N/A'}</td>
+                    <td>${cliente.descuentoNavideno.porcentaje}% - ${cliente.descuentoNavideno.descripcion || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm" onclick="mostrarFormularioActualizar(${cliente.id})">Actualizar</button>
+                    </td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" onclick="confirmarEliminacion(${cliente.id})">Eliminar</button>
+                    </td>
+                </tr>
+            `;
+        } else {
+            Swal.fire('Error', 'Cliente no encontrado.', 'error');
+        }
+    } catch (error) {
+        console.error('Error al buscar el cliente:', error);
+        Swal.fire('Error', 'Hubo un problema al buscar el cliente.', 'error');
+    }
+}
+
+
+         // Función para mostrar el formulario
+         function mostrarFormulario() {
+            const modal = new bootstrap.Modal(document.getElementById('agregarClienteModal'));
+            modal.show();
+        }
+
+        // Función para agregar cliente
+        async function agregarCliente() {
+            const nombre = document.getElementById('nombre').value;
+            const correo = document.getElementById('correo').value;
+            const comidasFavoritas = document.getElementById('comidasFavoritas').value.split(',').map(item => item.trim());
+            const descuento = document.getElementById('descuento').value;
+            const descripcionDescuento = document.getElementById('descripcionDescuento').value;
+
+            const cliente = {
+                nombre,
+                correo,
+                comidasFavoritas,
+                descuentoNavideno: { porcentaje: descuento, descripcion: descripcionDescuento }
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(cliente)
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Cliente agregado correctamente');
+                    document.getElementById('formCliente').reset();
+                    cargarClientes(currentPage);
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('agregarClienteModal'));
+                    modal.hide();
+                } else {
+                    alert('Error al agregar cliente: ' + data.mensaje);
+                }
+            } catch (error) {
+                console.error('Error al agregar cliente:', error);
+                alert('Error al agregar cliente');
+            }
+        }
+        async function mostrarFormularioActualizar(idCliente) {
+    try {
+        // Obtener los datos del cliente por ID desde la API
+        const response = await fetch(`${apiUrl}/${idCliente}`);
+        const cliente = await response.json();
+
+        if (response.ok) {
+            // Mostrar el formulario en SweetAlert2
+            const { value: formValues } = await Swal.fire({
+                title: 'Actualizar Cliente',
+                html: `
+                    <input id="swal-input1" class="swal2-input" placeholder="Nombre" value="${cliente.nombre}">
+                    <input id="swal-input2" type="email" class="swal2-input" placeholder="Correo" value="${cliente.correo}">
+                    <input id="swal-input3" class="swal2-input" placeholder="Comidas Favoritas (separadas por coma)" value="${cliente.comidasFavoritas.join(',')}">
+                    <input id="swal-input4" type="number" class="swal2-input" placeholder="Descuento (%)" value="${cliente.descuentoNavideno.porcentaje}">
+                    <input id="swal-input5" class="swal2-input" placeholder="Descripción del Descuento" value="${cliente.descuentoNavideno.descripcion}">
+                `,
+                focusConfirm: false,
+                preConfirm: () => {
+                    return {
+                        nombre: document.getElementById('swal-input1').value,
+                        correo: document.getElementById('swal-input2').value,
+                        comidasFavoritas: document.getElementById('swal-input3').value.split(',').map(item => item.trim()),
+                        descuentoNavideno: {
+                            porcentaje: document.getElementById('swal-input4').value,
+                            descripcion: document.getElementById('swal-input5').value
+                        }
+                    };
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Actualizar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (formValues) {
+                // Enviar los datos actualizados a la API
+                const updateResponse = await fetch(`${apiUrl}/${idCliente}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formValues)
+                });
+
+                if (updateResponse.ok) {
+                    Swal.fire('Éxito', 'Cliente actualizado correctamente', 'success');
+                    cargarClientes(currentPage); // Recargar la tabla
+                } else {
+                    Swal.fire('Error', 'No se pudo actualizar el cliente', 'error');
+                }
+            }
+        } else {
+            Swal.fire('Error', 'No se pudo obtener la información del cliente', 'error');
+        }
+    } catch (error) {
+        console.error('Error al mostrar el formulario de actualización:', error);
+        Swal.fire('Error', 'Hubo un problema al mostrar el formulario', 'error');
+    }
+}
+async function confirmarEliminacion(idCliente) {
+    try {
+        // Mostrar confirmación con SweetAlert2
+        const { isConfirmed } = await Swal.fire({
+            title: '¿Estás seguro?',
+            text: 'Esta acción eliminará al cliente de forma permanente.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (isConfirmed) {
+            // Llamar a la API para eliminar el cliente
+            const response = await fetch(`${apiUrl}/${idCliente}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                Swal.fire('Eliminado', 'El cliente ha sido eliminado correctamente.', 'success');
+                cargarClientes(currentPage); // Recargar la tabla
+            } else {
+                Swal.fire('Error', 'No se pudo eliminar al cliente.', 'error');
+            }
+        }
+    } catch (error) {
+        console.error('Error al eliminar el cliente:', error);
+        Swal.fire('Error', 'Hubo un problema al eliminar el cliente.', 'error');
+    }
+}
+
+
+
+        // Función para cargar los clientes con paginación compacta
+        async function cargarClientes(page = 1) {
+            try {
+                const response = await fetch(`${apiUrl}?page=${page}&limit=${limit}`);
+                const data = await response.json();
+                const tbody = document.getElementById('clientes-body');
+                const pagination = document.getElementById('pagination');
+
+                // Limpiar contenido
+                tbody.innerHTML = '';
+                pagination.innerHTML = '';
+
+                // Mostrar clientes en la tabla
+                data.clientes.forEach(cliente => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${cliente.id}</td>
+                            <td>${cliente.nombre}</td>
+                            <td>${cliente.correo || 'N/A'}</td>
+                            <td>${cliente.comidasFavoritas.join(', ') || 'N/A'}</td>
+                            <td>${cliente.descuentoNavideno.porcentaje}% - ${cliente.descuentoNavideno.descripcion || 'N/A'}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm" onclick="mostrarFormularioActualizar(${cliente.id})">Actualizar</button>
+                            </td>
+                             <td>
+                                <button class="btn btn-danger btn-sm" onclick="confirmarEliminacion(${cliente.id})">Eliminar</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+
+                // Configuración de paginación
+                const totalPages = data.totalPaginas;
+                const maxButtons = 5; // Máximo de botones visibles
+
+                let startPage = Math.max(1, page - Math.floor(maxButtons / 2));
+                let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+                if (endPage - startPage < maxButtons) {
+                    startPage = Math.max(1, endPage - maxButtons + 1);
+                }
+
+                // Botón "Primera Página"
+                pagination.innerHTML += `
+                    <li class="page-item ${page === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="cargarClientes(1)">Primera</a>
+                    </li>
+                `;
+
+                // Botón "Anterior"
+                pagination.innerHTML += `
+                    <li class="page-item ${page === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="cargarClientes(${page - 1})">Anterior</a>
+                    </li>
+                `;
+
+                // Botones de página
+                for (let i = startPage; i <= endPage; i++) {
+                    pagination.innerHTML += `
+                        <li class="page-item ${i === page ? 'active' : ''}">
+                            <a class="page-link" href="#" onclick="cargarClientes(${i})">${i}</a>
+                        </li>
+                    `;
+                }
+
+                // Botón "Siguiente"
+                pagination.innerHTML += `
+                    <li class="page-item ${page === totalPages ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="cargarClientes(${page + 1})">Siguiente</a>
+                    </li>
+                `;
+
+                // Botón "Última Página"
+                pagination.innerHTML += `
+                    <li class="page-item ${page === totalPages ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="cargarClientes(${totalPages})">Última</a>
+                    </li>
+                `;
+            } catch (error) {
+                console.error('Error al cargar clientes:', error);
+            }
+        }
+
+        // Cargar clientes al iniciar
+        cargarClientes(currentPage);
+    </script>
+</body>
+</html>
