@@ -41,9 +41,23 @@ app.post('/clientes', (req, res) => {
     res.status(201).json({ mensaje: "Cliente agregado correctamente.", cliente: nuevoCliente });
 });
 
-// Ruta para obtener todos los clientes
+// Ruta para obtener clientes con paginación
 app.get('/clientes', (req, res) => {
-    res.json(clientes);
+    const { page = 1, limit = 100 } = req.query;
+
+    const pagina = parseInt(page);
+    const limite = parseInt(limit);
+    const inicio = (pagina - 1) * limite;
+    const fin = pagina * limite;
+
+    const clientesPaginados = clientes.slice(inicio, fin);
+
+    res.json({
+        total: clientes.length,
+        paginaActual: pagina,
+        totalPaginas: Math.ceil(clientes.length / limite),
+        clientes: clientesPaginados
+    });
 });
 
 // Ruta para obtener un cliente por id
